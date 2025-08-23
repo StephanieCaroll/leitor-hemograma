@@ -1,230 +1,249 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './globals.css';
 
 export default function Page() {
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
-  const [error, setError] = useState('');
-  const [selectedKey, setSelectedKey] = useState('');
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [apiResponse, setApiResponse] = useState('');
+  const [error, setError] = useState('');
+  const responseTextRef = useRef(null);
 
-  const keyOptions = [
-    'Hemoglobina', 'Hemácias', 'VCM', 'HCM', 'CHCM', 'RDW', 'Leucocitos',
-    'Promielócitos', 'Mielócitos', 'Basófilos', 'Blastos', 'Metamielócitos',
-    'Bastões', 'Neutrófilos', 'Eosinófilos', 'Linfócito Típicos', 'Linfócito Atípicos', 'Monócitos',
-    'Contagem de Plaquetas', 'Data/Hora Coleta', 'Data/Hora Laudo', 'Ureia Serica',
-    'Creatinina Serica', 'AST/TGO', 'ALT/TGP', 'Proteínas Totais', 'Albumina',
-    'Globulina', 'Relação Albumina/Globulina', 'Sódio', 'Bilirrubinas Totais',
-    'Bilirrubinas Direta', 'Bilirrubinas Indireta', 'Potássio', 'Proteína C Reativa',
-    'Gasometria pH', 'PO2', 'PCO2', 'Sódio Gaso', 'Potássio Gaso',
-    'Cálcio Iônico', 'Glicose', 'Lactato', 'HCO3 Total', 'BE', 'SO2'
-  ];
+  async function extractTextFromPdf(file) {
+    const reader = new FileReader();
+    const fileReadPromise = new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+    const arrayBuffer = await fileReadPromise;
+    const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
 
-  const referenceValues = {
-    Hemoglobina: '13,50 – 17,50 g/dL',
-    Hemácias: '4,50 – 5,90 10⁶/mm³',
-    VCM: '80,0 – 100,0 fl',
-    HCM: '25,0 – 35,0 pg',
-    CHCM: '31,0 – 37,0 g/dL',
-    RDW: '11,70 – 15,00 %',
-    Leucocitos: '4500 – 11000 /mm³',
-    Promielócitos: '0%',
-    Mielócitos: '0%',
-    Basófilos: '0,0 - 1,0',
-    Blastos: '0%',
-    Metamielócitos: '0%',
-    Bastões: '0,0 - 4,0',
-    Neutrófilos: '45,5 – 73,5 %',
-    Eosinófilos: '0,0 – 4,0',
-    'Linfócito Típicos': '20,30 – 47,00 %',
-    'Linfócito Atípicos': '0,00 - 0,00%',
-    Monócitos: '2,00 - 10,0',
-    'Contagem de Plaquetas': '150 – 500 mil/mm³',
-    'Data/Hora Coleta': 'Verificar no laudo',
-    'Data/Hora Laudo': 'Verificar no laudo',
-    'Ureia Serica': '16,6 – 48,5 mg/dL',
-    'Creatinina Serica': '0,70 – 1,20 mg/dL',
-    'AST/TGO': 'Homem: até 50 U/L | Mulher: até 35 U/L',
-    'ALT/TGP': 'Homem: até 41 U/L | Mulher: até 33 U/L',
-    'Proteínas Totais': '6,6 – 8,7 g/dL',
-    Albumina: '3,5 – 5,2 g/dL',
-    Globulina: '2,2 – 4,2 g/dL',
-    'Relação Albumina/Globulina': '≈ 1,0',
-    'Sódio': '136 – 145 mmol/L',
-    'Bilirrubinas Totais': '0,00 – 1,20 mg/dL',
-    'Bilirrubinas Direta': '0,00 – 0,30 mg/dL',
-    'Bilirrubinas Indireta': 'Calculada',
-    'Potássio': '3,5 – 5,1 mmol/L',
-    'Proteína C Reativa': '< 0,50 mg/dL',
-    'Gasometria pH': '7,32 – 7,43',
-    PO2: '38 – 50 mmHg',
-    PCO2: '35 – 40 mmHg',
-    'Sódio Gaso': '136 – 145 mmol/L',
-    'Potássio Gaso': '3,4 – 4,5 mmol/L',
-    'Cálcio Iônico': '1,15 – 1,35 mmol/L',
-    Glicose: '60 – 95 mg/dL',
-    Lactato: '0,5 – 2,2 mmol/L',
-    'HCO3 Total': '22 – 29 mmol/L',
-    BE: '-2,0 – +2,0 mmol/L',
-    SO2: '60 – 75 %',
-  };
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+    return fullText;
+  }
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
-    script.onload = () => {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-    };
-    document.body.appendChild(script);
-  }, []);
+  async function handleGerarValores() {
+    if (!file) return;
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files?.[0];
-    if (selected?.type === 'application/pdf') {
-      setFile(selected);
-      setError('');
-      setExtractedData(null);
-    } else {
-      setError('Selecione um arquivo PDF válido.');
-      setFile(null);
-      setExtractedData(null);
-    }
-  };
+    setLoading(true);
+    setError('');
+    setApiResponse('');
 
-  const handleKeyChange = (e) => {
-    setSelectedKey(e.target.value);
-    setExtractedData(null);
-  };
+    try {
+      const textoExtraido = await extractTextFromPdf(file);
+      
+      // Your actual API call here
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: textoExtraido }),
+      });
 
-  const handleExtract = async () => {
-    if (!file || !window.pdfjsLib || selectedKey === '') {
-      setError('PDF.js não carregado, arquivo ausente ou exame não selecionado.');
-      return;
-    }
+      if (!res.ok) {
+        throw new Error(`A API retornou um erro: ${res.statusText}`);
+      }
 
-    setLoading(true);
-    setError('');
-    setExtractedData(null);
+      const data = await res.json();
+      setApiResponse(data.reply);
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const data = new Uint8Array(event.target.result);
-        const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Erro ao processar o PDF ou se comunicar com a API");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText += content.items.map(item => item.str).join(' ');
-        }
-        
-        const value = extractValue(fullText, selectedKey);
-        setExtractedData(value);
-      };
-      reader.readAsArrayBuffer(file);
-    } catch (err) {
-      console.error(err);
-      setError('Erro ao processar o PDF.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+    script.onload = () => {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+      }
+    };
+    document.body.appendChild(script);
+    
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch (e) {
+        // Script might already be removed
+      }
+    };
+  }, []);
 
-  const extractValue = (text, key) => {
-    const patterns = {
-      Hemácias: /Hem[aá]cias\s*([0-9.,]+)\s*10\\^6\/?mm³?/i,
-      Hemoglobina: /Hemoglobina\s+(\d+[,\.]?\d*)\s*g\/dL/i,
-      VCM: /VCM\s*[:\-]?\s*(\d+[,\.]?\d*)\s*fl/i,
-      HCM: /HCM\s*[:\-]?\s*(\d+[,\.]?\d*)\s*pg/i,
-      CHCM: /CHCM\s*[:\-]?\s*(\d+[,\.]?\d*)\s*g\/dL/i,
-      RDW: /RDW\s*[:\-]?\s*(\d+[,\.]?\d*)\s*%/i,
-      Leucocitos: /Leuc[oó]citos:?\s*(\d+[,\.]?\d*)\/mm[³3]/i,
-      Promielócitos: /Promiel[oó]citos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Mielócitos: /Miel[oó]citos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Basófilos: /Bas[oó]filos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Blastos: /Blastos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Metamielócitos: /Metamiel[oó]citos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Bastões: /Bast[oõ]es\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Neutrófilos: /Neutr[oó]filos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Eosinófilos: /Eosin[oó]filos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      'Linfócito Típicos': /Linf[oó]cito[s]?\s+T[ií]picos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      'Linfócito Atípicos': /Linf[oó]cito[s]?\s+At[ií]picos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      Monócitos: /Mon[oó]citos\s*[:\-]?\s*(\d+[,\.]?\d*)/i,
-      'Contagem de Plaquetas': /Plaquetas.*?(\d+[,\.]?\d*)\s*(mil\/mm|10\^3)/i,
-      'Data/Hora Coleta': /Data\/Hora\s+Coleta:?\s*(\d{2}\/\d{2}\/\d{4}\s*\d{2}:\d{2})/i,
-      'Data/Hora Laudo': /Data\/Hora\s+Laudo:?\s*(\d{2}\/\d{2}\/\d{4}\s*\d{2}:\d{2})/i,
-      'Ureia Serica': /UR[ÉE]IA S[ÉE]RICA(?:\s+[^:]*?)?[:\-]?\s*([0-9.,]+)\s*mg\/dL/i,
-      'Creatinina Serica': /CREATININA\s*S[ÉE]RICA\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      'AST/TGO': /(AST|TGO)\s*[:\-]?\s*(\d+)\s*U\/L/i,
-      'ALT/TGP': /(ALT|TGP)\s*[:\-]?\s*(\d+)\s*U\/L/i,
-      'Proteínas Totais': /PROTEINAS TOTAIS\s*[:\-]?\s*(\d+[,\.]?\d*)\s*g\/dL/i,
-      Albumina: /ALBUMINA\s*[:\-]?\s*(\d+[,\.]?\d*)\s*g\/dL/i,
-      Globulina: /GLOBULINA\s*[:\-]?\s*(\d+[,\.]?\d*)\s*g\/dL/i,
-      'Relação Albumina/Globulina': /RELAÇÃO ALBUMINA\/GLOBULINA\s*(\d+[,.]?\d*)/i,
-      'Sódio': /S[oó]dio\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mmol\/L/i,
-      'Bilirrubinas Totais': /BILIRRUBINAS TOTAIS\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      'Bilirrubinas Direta': /BILIRRUBINAS DIRETA\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      'Bilirrubinas Indireta': /BILIRRUBINAS INDIRETA\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      'Potássio': /POT[ÁA]SSIO\s*S[ÉE]RICO?\s*[:\-]?\s*(\d+[,.]?\d*)\s*mmol\/L/i,
-      'Proteína C Reativa': /Prote[ií]na C Reativa\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      'Gasometria pH': /pH:?\s*(\d+[,\.]?\d*)/i,
-      PO2: /PO2:?\s*(\d+[,\.]?\d*)\s*mmHg/i,
-      PCO2: /PCO2:?\s*(\d+[,\.]?\d*)\s*mmHg/i,
-      'Sódio Gaso': /S[OÓ]DIO:\s*(\d+[,.]?\d*)\s*mmol\/L/i, 
-      'Potássio Gaso': /POT[ÁA]SSIO:\s*(\d+[,.]?\d*)\s*mmol\/L/i,
-      'Cálcio Iônico': /C[aá]lcio I[ôó]nico\s*:\s*(\d+[,\.]?\d*)\s*mmol\/L/i,
-      Glicose: /Glicose:\s*(\d+[,\.]?\d*)\s*mg\/dL/i,
-      Lactato: /Lactato:\s*(\d+[,\.]?\d*)\s*mmol\/L/i,
-      'HCO3 Total': /HCO3\s+Total\s*[:\-]?\s*(\d+[,\.]?\d*)\s*mmol\/L/i,
-      BE: /B\.?E:?\s*(-?\d+[,.]?\d*)\s*mmol\/L/i,
-      SO2: /SO2:?\s*(\d+[,\.]?\d*)\s*%/i,
-    };
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (selected?.type === 'application/pdf') {
+      setFile(selected);
+      setError('');
+      setApiResponse('');
+    } else {
+      setError('Selecione um arquivo PDF válido.');
+      setFile(null);
+    }
+  };
 
-    const regex = patterns[key];
-    if (!regex) return 'Padrão não encontrado';
+  const handleCopyToClipboard = async () => {
+    if (responseTextRef.current) {
+      try {
+        await navigator.clipboard.writeText(responseTextRef.current.innerText);
+        alert('Texto copiado com sucesso!');
+      } catch (err) {
+        console.error('Falha ao copiar texto: ', err);
+        alert('Erro ao copiar texto.');
+      }
+    }
+  };
 
-    const match = text.match(regex);
-    if (key === 'AST/TGO' || key === 'ALT/TGP') {
-      return match ? match[2] : 'Valor não encontrado';
-    }
-    return match ? match[1] : 'Valor não encontrado';
-  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-red-50 p-6">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <div className="p-3 bg-gradient-to-r from-red-600 to-red-700 rounded-full shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+              Analisador de Exames
+            </h1>
+          </div>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Sistema inteligente de análise de hemogramas e exames laboratoriais. 
+            Faça upload do seu PDF e obtenha uma interpretação detalhada dos resultados.
+          </p>
+        </div>
 
-  return (
-    <div className="container">
-      <div className="card">
-        <h1>Analisador de Exames</h1>
-        <p>Selecione um PDF de exame e o tipo de exame para extrair o valor.</p>
+        {/* Upload Card */}
+        <div className="bg-white rounded-xl shadow-lg border border-red-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 border-b border-red-200">
+            <h2 className="text-xl font-semibold text-red-800 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Upload do Exame
+            </h2>
+            <p className="text-red-600 mt-1">
+              Selecione um arquivo PDF contendo os resultados do seu exame
+            </p>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* File Input */}
+            <div className="space-y-2">
+              <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700">
+                Arquivo PDF do Exame
+              </label>
+              <div className="relative">
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer border border-gray-300 rounded-lg p-3"
+                />
+                <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              {file && (
+                <p className="text-sm text-red-700 bg-red-50 p-2 rounded-md">
+                  ✓ {file.name} selecionado
+                </p>
+              )}
+            </div>
 
-        <label htmlFor="file-upload">Selecione o PDF:</label>
-        <input id="file-upload" type="file" accept="application/pdf" onChange={handleFileChange} />
+            {/* Analyze Button */}
+            <button 
+              onClick={handleGerarValores} 
+              disabled={loading || !file}
+              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Analisando Exame...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Analisar Exame
+                </>
+              )}
+            </button>
 
-        <label htmlFor="exam-select">Selecione o exame:</label>
-        <select id="exam-select" value={selectedKey} onChange={handleKeyChange}>
-          <option value="" disabled>-- Selecione um exame --</option>
-          {keyOptions.map(key => (
-            <option key={key} value={key}>{key}</option>
-          ))}
-        </select>
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 font-medium">⚠️ {error}</p>
+              </div>
+            )}
+          </div>
+        </div>
 
-        <button onClick={handleExtract} disabled={loading || !file || !selectedKey}>
-          {loading ? 'Analisando...' : 'Extrair Valor'}
-        </button>
+        {/* Results Card */}
+        {apiResponse && (
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 border-b border-red-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-red-800 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Resultados da Análise
+                </h2>
+                <button
+                  onClick={handleCopyToClipboard}
+                  className="px-3 py-1 text-sm border border-red-300 text-red-700 hover:bg-red-50 rounded-md transition-colors duration-200 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copiar
+                </button>
+              </div>
+              <p className="text-red-600 mt-1">
+                Interpretação detalhada dos valores encontrados no exame
+              </p>
+            </div>
+            <div className="p-6">
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <pre 
+                  ref={responseTextRef}
+                  className="whitespace-pre-wrap text-sm font-mono text-gray-800 leading-relaxed overflow-x-auto"
+                >
+                  {apiResponse}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {error && <p className="error">{error}</p>}
-
-        {extractedData && (
-          <div className="result">
-            <h3>Resultado para: {selectedKey}</h3>
-            <p><strong>Valor encontrado:</strong> {extractedData}</p>
-            <p><strong>Valor de referência:</strong> {referenceValues[selectedKey]}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+        {/* Info Footer */}
+        <div className="text-center text-sm text-gray-500">
+          <p>
+            ⚕️ Esta ferramenta oferece interpretações educativas. 
+            Sempre consulte um profissional de saúde qualificado.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }

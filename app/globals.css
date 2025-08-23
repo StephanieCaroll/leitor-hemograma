@@ -110,3 +110,33 @@ h3 {
   margin-bottom: 0.5rem;
   color: #38bdf8;
 }
+
+/* Medical theme additions */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-red-300 {
+  scrollbar-color: rgb(252 165 165) transparent;
+}
+
+/* Custom animations */
+@keyframes pulse-medical {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-medical {
+  animation: pulse-medical 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
