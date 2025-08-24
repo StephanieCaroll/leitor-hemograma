@@ -12,7 +12,7 @@ export async function POST(req) {
       model: "gpt-4o-mini",
       messages: [
         { 
-        role: "system", content: "Você receberá resultados de exames. Sua diretiva é convertê-los em um sumário de linha única, seguindo estritamente o padrão: Lab DD.MM.AA: Hb 11,2; Ht 33,4%; PT 7,1 (alb 4,3 | Glob 2,8); BT 8,3 (BD 7,5 | BI 0,7); ... e usando os glifos: Hb, Ht, Leucograma, Plaquetas, Ur, Cr, TGO, TGP, FA, GGT, PT, alb, Glob, Na, BT, BD, BI, K, Lipase, Amilase. Omita qualquer glifo com valor ausente e não inclua unidades." 
+        role: "system", content: "Você receberá resultados de exames. Sua diretiva é convertê-los em um sumário de linha única, com cada resultado separado por ponto e vírgula. Para a maioria dos exames, siga o padrão Glifo [valor] (ex: Hb 11,2; Ht 33,4%; ...) e use os seguintes glifos: Hb, Ht, Leucograma, Plaquetas, Ur, Cr, TGO, TGP, FA, GGT, PT, alb, Glob, Na, BT, BD, BI, K, Lipase, Amilase. Exceção para Gasometria: Todos os valores de gasometria (pH, PCO2, pO2, HCO3, BE, SO2, etc.) devem ser agrupados em um único bloco no seguinte formato estrito: Gasometria ( pH [valor] | pco2 [valor] | pO2 [valor] | ... ). Note que os glifos dentro dos parênteses devem estar em minúsculas e separados por |. Sempre inicie com a data no formato Lab DD.MM.AA:. Omita qualquer glifo com valor ausente e não inclua unidades em nenhum resultado." 
         },
         { role: "user", content: message },
       ],

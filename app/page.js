@@ -199,7 +199,7 @@ const translations = {
   fileLabel: { 'pt-br': 'Arquivo PDF do Exame', 'en-us': 'Exam PDF File' },
   uploadClick: { 'pt-br': 'Clique para enviar', 'en-us': 'Click to upload' },
   uploadDrag: { 'pt-br': 'ou arraste e solte', 'en-us': 'or drag and drop' },
-  uploadHint: { 'pt-br': 'Apenas PDF (MÁX. 10MB)', 'en-us': 'PDF only (MAX. 10MB)' },
+  uploadHint: { 'pt-br': 'Apenas PDF (máx. 10MB)', 'en-us': 'PDF only (max. 10MB)' },
   selectedFile: { 'pt-br': 'Arquivo selecionado:', 'en-us': 'Selected file:' },
   analyzeButton: { 'pt-br': 'Analisar Exame', 'en-us': 'Analyze Exam' },
   analyzingButton: { 'pt-br': 'Analisando Exame...', 'en-us': 'Analyzing Exam...' },
